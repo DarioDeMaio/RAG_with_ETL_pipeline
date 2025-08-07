@@ -1,7 +1,7 @@
 services:
   rag_app:
     build:
-      context: ./app
+      context: .
     volumes:
       - ./app/chroma_db:/app/chroma_db
       - ./data:/app/data
