@@ -6,6 +6,12 @@ from langchain.chains import RetrievalQA
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from add_to_db import ingest_documents, PERSISTENT_DIRECTORY
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://localhost:4200",
+    # altri origini ammessi
+]
 
 load_dotenv()
 
@@ -13,6 +19,14 @@ if not os.getenv("OPENAI_API_KEY"):
     raise ValueError("OPENAI_API_KEY environment variable is required")
 
 backend = FastAPI()
+
+backend.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18", temperature=0)
