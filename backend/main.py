@@ -5,26 +5,25 @@ from dotenv import load_dotenv
 from langchain.chains import RetrievalQA
 from langchain_chroma import Chroma
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from app.init_db import ingest_documents, PERSISTENT_DIRECTORY
+from add_to_db import ingest_documents, PERSISTENT_DIRECTORY
 
 load_dotenv()
 
 if not os.getenv("OPENAI_API_KEY"):
     raise ValueError("OPENAI_API_KEY environment variable is required")
 
-app = FastAPI()
+backend = FastAPI()
 
 embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18", temperature=0)
 
 qa = None
 
-
 class Query(BaseModel):
     question: str
 
 
-@app.on_event("startup")
+@backend.on_event("startup")
 async def startup_event():
     global qa
 
@@ -48,7 +47,7 @@ async def startup_event():
         raise
 
 
-@app.post("/query")
+@backend.post("/query")
 async def query_qa(q: Query):
     global qa
     if qa is None:
@@ -69,6 +68,6 @@ async def query_qa(q: Query):
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
 
 
-@app.get("/health")
+@backend.get("/health")
 async def health_check():
     return {"status": "healthy", "qa_initialized": qa is not None}

@@ -41,17 +41,25 @@ def ingest_documents(paths):
 
     print(f"Created {len(texts)} text chunks for embedding")
 
-    os.makedirs(PERSISTENT_DIRECTORY, exist_ok=True)
-
-    try:
-        vector_db = Chroma.from_documents(
-            documents=texts,
-            persist_directory=PERSISTENT_DIRECTORY,
-            embedding=embeddings,
-            collection_name="my_collection"
-        )
-    except Exception as e:
-        print(f"Error creating Chroma database: {e}")
+    if not os.path.exists(PERSISTENT_DIRECTORY):
+        os.makedirs(PERSISTENT_DIRECTORY, exist_ok=True)
+        try:
+            vector_db = Chroma.from_documents(
+                documents=texts,
+                persist_directory=PERSISTENT_DIRECTORY,
+                embedding=embeddings,
+                collection_name="my_collection"
+            )
+        except Exception as e:
+            print(f"Error creating Chroma database: {e}")
+            vector_db = Chroma(
+                persist_directory=PERSISTENT_DIRECTORY,
+                embedding_function=embeddings,
+                collection_name="my_collection"
+            )
+            vector_db.add_documents(texts)
+    else:
+        print(f"Update database: {e}")
         vector_db = Chroma(
             persist_directory=PERSISTENT_DIRECTORY,
             embedding_function=embeddings,
