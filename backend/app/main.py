@@ -1,11 +1,12 @@
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from langchain.chains import RetrievalQA
 from langchain_chroma import Chroma
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from add_to_db import ingest_documents, PERSISTENT_DIRECTORY
+# from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from ingest.add_to_db import ingest_documents_on_startup, PERSISTENT_DIRECTORY, embeddings, llm
 from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
@@ -18,32 +19,18 @@ load_dotenv()
 if not os.getenv("OPENAI_API_KEY"):
     raise ValueError("OPENAI_API_KEY environment variable is required")
 
-backend = FastAPI()
-
-backend.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
-llm = ChatOpenAI(model="gpt-4o-mini-2024-07-18", temperature=0)
-
 qa = None
 
-class Query(BaseModel):
+class Request(BaseModel):
     question: str
 
-
-@backend.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global qa
 
     try:
         if not os.path.exists(PERSISTENT_DIRECTORY) or not os.listdir(PERSISTENT_DIRECTORY):
-            vector_db = ingest_documents([os.path.join("data", f) for f in os.listdir("data") if f.endswith(".pdf")])
+            vector_db = ingest_documents_on_startup([os.path.join("data", f) for f in os.listdir("data") if f.endswith(".pdf")])
         else:
             vector_db = Chroma(
                 persist_directory=PERSISTENT_DIRECTORY,
@@ -56,20 +43,33 @@ async def startup_event():
             chain_type="stuff",
             retriever=vector_db.as_retriever(search_kwargs={"k": 3})
         )
+        yield
     except Exception as e:
         print(f"Error during startup: {e}")
         raise
+    finally:
+        print("Shutting down startup event...")
+        yield
 
+app = FastAPI(lifespan=lifespan)
 
-@backend.post("/query")
-async def query_qa(q: Query):
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.post("/query")
+async def query_qa(request: Request):
     global qa
     if qa is None:
         raise HTTPException(status_code=500, detail="QA system not initialized")
 
     try:
-        docs = qa.retriever.get_relevant_documents(q.question)
-        result = qa.invoke({"query": q.question})
+        docs = qa.retriever.get_relevant_documents(request.question)
+        result = qa.invoke({"query": request.question})
         answer = result.get("result", "No answer generated")
 
         retrieved_texts = [doc.page_content for doc in docs]
@@ -82,6 +82,6 @@ async def query_qa(q: Query):
         raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
 
 
-@backend.get("/health")
+@app.get("/health")
 async def health_check():
     return {"status": "healthy", "qa_initialized": qa is not None}

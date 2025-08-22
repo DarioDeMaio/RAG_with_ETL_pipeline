@@ -1,9 +1,0 @@
-<form (ngSubmit)="inviaDomanda()">
-  <label for="question">Fai una domanda:</label><br>
-  <input id="question" name="question" [(ngModel)]="domanda" required>
-  <button type="submit">Invia</button>
-</form>
-<div *ngIf="risposta">
-  <h3>Risposta:</h3>
-  <p>{{ risposta.answer }}</p>
-</div>

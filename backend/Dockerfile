@@ -1,11 +1,9 @@
-FROM python
+FROM python:3.12
 
 WORKDIR /backend
 
 COPY . .
 
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["uvicorn", "main:backend", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-
-
+CMD "tail -f /dev/null"
