@@ -56,9 +56,10 @@ def update_croma_db(bucket: str, key: str, dest: str) -> None:
     )
     if not os.path.exists(dest):
         os.makedirs(dest, exist_ok=True)
-
-    s3.download_file(bucket, key, dest)
-    texts = read_documents([f"{dest}/{key}"])
+    
+    local_path = os.path.join(dest, key)
+    s3.download_file(bucket, key, local_path)
+    texts = read_documents([local_path])
     
     if not texts:
         print(f"Nessun testo estratto da {f"{dest}/{key}"}, skip aggiornamento")
@@ -74,3 +75,5 @@ def update_croma_db(bucket: str, key: str, dest: str) -> None:
         vector_db.add_documents(texts)
     except Exception as e:
         print(f"Error updating Chroma database: {e}")
+    
+    os.remove(local_path)

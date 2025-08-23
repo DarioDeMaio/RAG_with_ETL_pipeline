@@ -10,7 +10,7 @@ services:
     ports:
       - "8000:8000"
     # command: uvicorn main:backend --host 0.0.0.0 --port 8000 --reload
-    command: tail -f /dev/null
+    # command: tail -f /dev/null
     env_file:
       - .env
     restart: always
@@ -33,15 +33,16 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    
-    MINIO_NOTIFY_WEBHOOK_ENABLE: "on"
-    MINIO_NOTIFY_WEBHOOK_ENDPOINT: "http://rag_backend:8000/minio/webhook"
+      MINIO_NOTIFY_WEBHOOK_ENABLE_1: "on"
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT_1: "http://rag_backend:8000/minio/webhook"
     # MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN: "mysecrettoken"
-    
+
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
       - "9001:9001"
+    depends_on:
+      - rag_backend
     volumes:
       - minio_data:/data
     
@@ -59,6 +60,29 @@ services:
       done;
       /usr/bin/mc mb --quiet myminio/${AWS_STORAGE_BUCKET_NAME} || true;
       /usr/bin/mc policy set none myminio/${AWS_STORAGE_BUCKET_NAME} || true;
+      '
+
+  createevents:
+    image: minio/mc@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
+    depends_on:
+      - minio
+      - rag_backend
+    env_file:
+      - .env
+    entrypoint: >
+      /bin/sh -c '
+      echo "Configurazione webhook MinIO...";
+      until /usr/bin/mc config host add myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
+        echo "Waiting for MinIO to be ready...";
+        sleep 5;
+      done;
+      # aspetta che il backend sia pronto
+      until curl -s http://rag_backend:8000/health; do
+        echo "Waiting for backend to be ready...";
+        sleep 5;
+      done;
+      /usr/bin/mc event add myminio/${AWS_STORAGE_BUCKET_NAME} arn:minio:sqs::1:webhook --events "s3:ObjectCreated:*" --address "http://rag_backend:8000/minio/webhook" || true;
+      echo "Webhook configurato!";
       '
 
 volumes:
