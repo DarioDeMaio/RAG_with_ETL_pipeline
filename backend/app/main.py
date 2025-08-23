@@ -1,13 +1,13 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from langchain.chains import RetrievalQA
 from langchain_chroma import Chroma
-# from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from ingest.add_to_db import ingest_documents_on_startup, PERSISTENT_DIRECTORY, embeddings, llm
+from ingest.add_to_db import ingest_documents_on_startup, PERSISTENT_DIRECTORY, embeddings, llm, update_croma_db
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 origins = [
     "http://localhost:4200",
@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI):
             chain_type="stuff",
             retriever=vector_db.as_retriever(search_kwargs={"k": 3})
         )
+
         yield
     except Exception as e:
         print(f"Error during startup: {e}")
@@ -85,3 +86,24 @@ async def query_qa(request: Request):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "qa_initialized": qa is not None}
+
+async def trigger_ingest_flow(bucket: str, key: str, dest: str="tmp"):
+    update_croma_db(bucket, key, dest)
+
+@app.post("/minio/webhook")
+async def minio_webhook(request: Request, authorization: str = Header(None)):
+    # expected_token = "mysecrettoken"
+    # if authorization != expected_token:
+    #     raise HTTPException(status_code=403, detail="Forbidden")
+
+    event = await request.json()
+    print("Evento MinIO:", event)
+
+    record = event["Records"][0]
+    bucket = record["s3"]["bucket"]["name"]
+    key = record["s3"]["object"]["key"]
+
+    # trigger asincrono
+    asyncio.create_task(trigger_ingest_flow(bucket, key))
+
+    return {"status": "ok"}

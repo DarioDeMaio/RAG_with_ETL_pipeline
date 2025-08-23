@@ -9,19 +9,57 @@ services:
       - ./backend:/backend
     ports:
       - "8000:8000"
-    command: uvicorn main:backend --host 0.0.0.0 --port 8000 --reload
+    # command: uvicorn main:backend --host 0.0.0.0 --port 8000 --reload
+    command: tail -f /dev/null
     env_file:
       - .env
     restart: always
 
-  rag_frontend:
-    build:
-      context: ./frontend
-    container_name: rag_frontend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+  # rag_frontend:
+  #   build:
+  #     context: ./frontend
+  #   container_name: rag_frontend
+  #   volumes:
+  #     - ./frontend:/app
+  #     - /app/node_modules
+  #   ports:
+  #     - "4200:4200"
+  #   tty: true
+  #   restart: always
+
+  minio:
+    image: minio/minio@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    
+    MINIO_NOTIFY_WEBHOOK_ENABLE: "on"
+    MINIO_NOTIFY_WEBHOOK_ENDPOINT: "http://rag_backend:8000/minio/webhook"
+    # MINIO_NOTIFY_WEBHOOK_AUTH_TOKEN: "mysecrettoken"
+    
+    command: server /data --console-address ":9001"
     ports:
-      - "4200:4200"
-    tty: true
-    restart: always
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    
+  createbuckets:
+    image: minio/mc@sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3
+    depends_on:
+      - minio
+    env_file:
+      - .env
+    entrypoint: >
+      /bin/sh -c '
+      until /usr/bin/mc config host add myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
+        echo "Waiting for MinIO to be ready...";
+        sleep 5;
+      done;
+      /usr/bin/mc mb --quiet myminio/${AWS_STORAGE_BUCKET_NAME} || true;
+      /usr/bin/mc policy set none myminio/${AWS_STORAGE_BUCKET_NAME} || true;
+      '
+
+volumes:
+  minio_data:

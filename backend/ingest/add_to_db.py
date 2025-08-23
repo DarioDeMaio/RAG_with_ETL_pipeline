@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 import os
 from dotenv import load_dotenv
 from ingest.utils import read_documents
+import boto3
 
 load_dotenv()
 
@@ -45,3 +46,31 @@ def ingest_documents_on_startup(paths):
 
     print(f"Ingest completed. Data persisted in {PERSISTENT_DIRECTORY}", flush=True)
     return vector_db
+
+def update_croma_db(bucket: str, key: str, dest: str) -> None:
+    s3 = boto3.client(
+        "s3",
+        endpoint_url="http://minio:9000",
+        aws_access_key_id=os.getenv("MINIO_ROOT_USER"),
+        aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD"),
+    )
+    if not os.path.exists(dest):
+        os.makedirs(dest, exist_ok=True)
+
+    s3.download_file(bucket, key, dest)
+    texts = read_documents([f"{dest}/{key}"])
+    
+    if not texts:
+        print(f"Nessun testo estratto da {f"{dest}/{key}"}, skip aggiornamento")
+        return
+    
+    vector_db = Chroma(
+        persist_directory=PERSISTENT_DIRECTORY,
+        embedding_function=embeddings,
+        collection_name="my_collection"
+    )
+
+    try:
+        vector_db.add_documents(texts)
+    except Exception as e:
+        print(f"Error updating Chroma database: {e}")
