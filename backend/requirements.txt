@@ -10,3 +10,4 @@ uvicorn
 pypdf
 faiss-cpu
 boto3
+prefect

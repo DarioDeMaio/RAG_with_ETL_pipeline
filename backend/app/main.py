@@ -76,18 +76,3 @@ async def query_qa(request: QueryRequest):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "qa_initialized": qa is not None}
-
-async def trigger_ingest_flow(bucket: str, key: str, dest: str="tmp"):
-    update_croma_db(bucket, key, dest)
-
-@app.post("/minio/webhook")
-async def minio_webhook(request: Request, authorization: str = Header(None)):
-    event = await request.json()
-    print("Evento MinIO:", event)
-
-    record = event["Records"][0]
-    bucket = record["s3"]["bucket"]["name"]
-    key = record["s3"]["object"]["key"]
-
-    asyncio.create_task(trigger_ingest_flow(bucket, key))
-    return {"status": "ok"}
