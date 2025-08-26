@@ -62,7 +62,7 @@ def update_croma_db(bucket: str, key: str, dest: str) -> None:
     texts = read_documents([local_path])
     
     if not texts:
-        print(f"Nessun testo estratto da {f"{dest}/{key}"}, skip aggiornamento")
+        print(f"Nessun testo estratto da {dest}/{key}, skip aggiornamento")
         return
     
     vector_db = Chroma(

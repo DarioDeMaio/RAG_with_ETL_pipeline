@@ -25,6 +25,8 @@ def process_file(bucket_name: str, key: str) -> None:
 
 @flow
 def ingest_periodic(bucket_name: str) -> None:
+    print(f"Bucket name: {bucket_name}")
     keys = list_minio_file(bucket_name)
-    for key in keys:
-        process_file(bucket_name, key)
+    if keys or len(keys) > 0:
+        for key in keys:
+            process_file(bucket_name, key)
