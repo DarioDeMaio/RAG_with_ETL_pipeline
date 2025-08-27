@@ -29,11 +29,13 @@ def split_documents(docs: list) -> list:
     texts = text_splitter.split_documents(docs)
     return texts
 
-def read_documents(paths: str) -> list:
+def read_documents(paths: list) -> list:
     docs = []
     for path in paths:
         if path.endswith(".pdf"):
             read_pdf(path, docs)
+        elif path.endswith(".csv"):
+            read_csv(path, docs)
 
     if not docs:
         raise ValueError("No documents were successfully loaded from the PDF files")
