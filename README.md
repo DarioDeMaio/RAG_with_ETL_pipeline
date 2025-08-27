@@ -4,7 +4,7 @@ A comprehensive Retrieval-Augmented Generation (RAG) system built with FastAPI, 
 
 ## 🏗️ Architecture Overview
 
-![RAG System Architecture](assets/architecture_diagram.svg)
+![RAG System Architecture](assets/architecture_diagram.png)
 
 This system implements a modern RAG architecture with the following key components:
 
