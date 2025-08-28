@@ -13,17 +13,17 @@ services:
       - .env
     restart: always
 
-  # rag_frontend:
-  #   build:
-  #     context: ./frontend
-  #   container_name: rag_frontend
-  #   volumes:
-  #     - ./frontend:/app
-  #     - /app/node_modules
-  #   ports:
-  #     - "4200:4200"
-  #   tty: true
-  #   restart: always
+  rag_frontend:
+    build:
+      context: ./frontend
+    container_name: rag_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "4300:4300"
+    tty: true
+    restart: always
 
   minio:
     image: minio/minio@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e

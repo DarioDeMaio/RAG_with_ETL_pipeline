@@ -9,7 +9,7 @@ from langchain_chroma import Chroma
 from ingest.add_to_db import ingest_documents_on_startup, PERSISTENT_DIRECTORY, embeddings, llm, update_croma_db
 from fastapi.middleware.cors import CORSMiddleware
 
-origins = ["http://localhost:4200"]
+origins = ["http://localhost:4300"]
 
 load_dotenv()
 
